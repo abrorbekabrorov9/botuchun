@@ -1,8 +1,13 @@
+import os
 import telebot
 import logging
+import random  # random sonlar uchun
 
-# === BOT TOKEN ===
-TOKEN = "7959935946:AAHbVDAMxCO-VjjZzkz50xrorvKpiga0QcI"
+# === BOT TOKEN (Railway Environment Variable dan) ===
+TOKEN = os.environ.get("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable topilmadi!")
+
 bot = telebot.TeleBot(TOKEN)
 
 # === LOGGING sozlamalari ===
@@ -25,12 +30,6 @@ def signal_menu():
 def send_welcome(message):
     welcome_text = (
         "👋 Hurmatli foydalanuvchi!\n\n"
-        "Eslatma! Bot to'g'ri ishlashi uchun:\n"
-        "1) 🟢 Vzlom ilovalarni yuklab oling\n"
-        "2) Promokod: **FOYDA50**\n"
-        "3) Hisobni to‘ldiring (200.000 so‘m yoki ko‘proq)\n"
-        "4) ID raqamingizni botga yuboring\n"
-        "5) Soxta ID yuborilsa signal ishlamaydi\n\n"
         "Quyidagi tugmalardan foydalaning 👇"
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu())
@@ -49,8 +48,8 @@ def handle_message(message):
         bot.register_next_step_handler(msg, get_id)
 
     elif message.text == "🔔 Signal olish":
-        # Random signal olish logikasi
-        pass
+        random_number = random.randint(1, 5)  # 1 dan 5 gacha tasodifiy son
+        bot.send_message(message.chat.id, f"📡 Signal: {random_number}")
 
     elif message.text == "🔙 Orqaga":
         bot.send_message(message.chat.id, "Asosiy menyuga qaytdingiz.", reply_markup=main_menu())
@@ -58,13 +57,11 @@ def handle_message(message):
 # === ID OLIB, VAQT TANLASH ===
 def get_id(message):
     user_id = message.text
-    # vaqtni tanlash logikasi
-
-def get_time(message):
-    # vaqt tanlashni davom ettirish
+    bot.send_message(message.chat.id, f"✅ ID qabul qilindi: {user_id}\n⏰ Endi vaqt tanlash funksiyasi ishlab chiqilishi kerak.")
 
 # === BOTNI ISHGA TUSHURISH ===
-try:
-    bot.polling(none_stop=True)
-except Exception as e:
-    logger.error(f"Botni ishga tushirishda xatolik yuz berdi: {e}")
+if __name__ == "__main__":
+    try:
+        bot.polling(none_stop=True)
+    except Exception as e:
+        logger.error(f"Botni ishga tushirishda xatolik yuz berdi: {e}")
