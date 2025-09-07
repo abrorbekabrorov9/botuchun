@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def main_menu():
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
-    markup.row("🔔 Signal olish")  # signal tugmasi qo‘shildi
+    markup.row("🔔 Signal olish")  # Signal olish tugmasi doimiy chiqadi
     return markup
 
 # === /START BUYRUG'I ===
@@ -26,8 +26,12 @@ def main_menu():
 def send_welcome(message):
     welcome_text = (
         "👋 Hurmatli foydalanuvchi!\n\n"
-        "Botdan foydalanish uchun avval ro‘yxatdan o‘ting.\n"
-        "Agar promokod: FOYDA50 ishlatmasangiz yoki ID noto‘g‘ri bo‘lsa, signal bermaydi!"
+        "Eslatma! Bot to'g'ri ishlashi uchun:\n"
+        "1) 📝 Ro'yxatdan o'tishni bosib, ssilka orqali ro'yxatdan o'ting va Promokod joyiga FOYDA50 yozing.\n"
+        "2) Hisobingizni kattaroq summaga to'ldiring (masalan 200.000 Ming So'm).\n"
+        "3) Botga o'sha ro'yxatdan o'tgan profil ID sini tashlang.\n"
+        "4) Botga noto‘g‘ri yoki feyk ID tashlansa bot xato signal ko‘rsatadi.\n\n"
+        "👇 Quyidagi tugmalardan foydalaning 👇"
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu())
 
@@ -39,7 +43,7 @@ def handle_message(message):
             message.chat.id,
             "📝 Ro'yxatdan o'tish uchun havolalar:\n"
             "👉 https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration\n"
-            "👉 Linebet dasturi: https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803"
+            "👉 📥 Linebet dasturi: https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803"
         )
 
     elif message.text == "▶️ Davom etish":
@@ -61,7 +65,6 @@ if __name__ == "__main__":
         bot.polling(none_stop=True)
     except Exception as e:
         logger.error(f"Botni ishga tushirishda xatolik yuz berdi: {e}")
-
 
 
 
