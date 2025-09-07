@@ -18,11 +18,7 @@ logger = logging.getLogger(__name__)
 def main_menu():
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
-    return markup
-
-def signal_menu():
-    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-    markup.row("🔔 Signal olish", "🔙 Orqaga")
+    markup.row("🔔 Signal olish")  # signal tugmasi qo‘shildi
     return markup
 
 # === /START BUYRUG'I ===
@@ -30,7 +26,8 @@ def signal_menu():
 def send_welcome(message):
     welcome_text = (
         "👋 Hurmatli foydalanuvchi!\n\n"
-        "Quyidagi tugmalardan foydalaning 👇"
+        "Botdan foydalanish uchun avval ro‘yxatdan o‘ting.\n"
+        "Agar promokod: FOYDA50 ishlatmasangiz yoki ID noto‘g‘ri bo‘lsa, signal bermaydi!"
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu())
 
@@ -40,9 +37,9 @@ def handle_message(message):
     if message.text == "📝 Ro'yxatdan o'tish":
         bot.send_message(
             message.chat.id,
-            "📝 Ro'yxatdan o'tish uchun havolalar:\n\n"
-            "👉 Asosiy: https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration\n"
-            "👉 Dastur orqali: https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803"
+            "📝 Ro'yxatdan o'tish uchun havolalar:\n"
+            "👉 https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration\n"
+            "👉 Linebet dasturi: https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803"
         )
 
     elif message.text == "▶️ Davom etish":
@@ -50,24 +47,13 @@ def handle_message(message):
         bot.register_next_step_handler(msg, get_id)
 
     elif message.text == "🔔 Signal olish":
-        bot.send_message(
-            message.chat.id,
-            "⚠️ ID raqamingizni va Foyda50 promokodini to‘g‘ri kiriting, aks holda bot sizga xato ko‘rsatadi!"
-        )
         random_number = random.randint(1, 5)  # 1 dan 5 gacha tasodifiy son
         bot.send_message(message.chat.id, f"🍎 Signal: {random_number}")
 
-    elif message.text == "🔙 Orqaga":
-        bot.send_message(message.chat.id, "Asosiy menyuga qaytdingiz.", reply_markup=main_menu())
-
-# === ID OLIB, TEKSHIRISH ===
+# === ID OLIB ===
 def get_id(message):
     user_id = message.text
-    bot.send_message(
-        message.chat.id,
-        f"✅ ID qabul qilindi: {user_id}\n"
-        "👉 Endi Signal olish tugmasidan foydalanishingiz mumkin."
-    )
+    bot.send_message(message.chat.id, f"✅ ID qabul qilindi: {user_id}\n📡 Endi signal olish mumkin.")
 
 # === BOTNI ISHGA TUSHURISH ===
 if __name__ == "__main__":
@@ -75,5 +61,7 @@ if __name__ == "__main__":
         bot.polling(none_stop=True)
     except Exception as e:
         logger.error(f"Botni ishga tushirishda xatolik yuz berdi: {e}")
+
+
 
 
