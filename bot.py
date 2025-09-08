@@ -1,18 +1,17 @@
 import os
 import telebot
-import logging
+from flask import Flask, request
 import random
 
-# === BOT TOKEN (Railway Environment Variable dan) ===
+# === TOKEN va URL ===
 TOKEN = os.environ.get("BOT_TOKEN")
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable topilmadi!")
+APP_URL = os.environ.get("APP_URL")  # oxirida '/' bo‘lishi shart
+
+if not TOKEN or not APP_URL:
+    raise ValueError("BOT_TOKEN yoki APP_URL sozlanmagan!")
 
 bot = telebot.TeleBot(TOKEN)
-
-# === LOGGING ===
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+server = Flask(__name__)
 
 # === ADMIN ID ===
 ADMIN_ID = 7850048970
@@ -25,7 +24,8 @@ users_with_id = set()
 def main_menu():
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
-    markup.row("📊 Statistika")
+    markup.row("📡 Signal olish 🍎", "📊 Statistika")
+    markup.row("🔄 Start")
     return markup
 
 def signal_menu():
@@ -34,11 +34,9 @@ def signal_menu():
     markup.row("🔙 Orqaga")
     return markup
 
-# === /START BUYRUG‘I ===
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    users.add(message.chat.id)
-    welcome_text = (
+# === Xush kelibsiz matni ===
+def welcome_text():
+    return (
         "👋 Hurmatli foydalanuvchi!\n\n"
         "Quyidagi tugmalardan foydalaning 👇\n\n"
         "❗️ Diqqat! Bot faqat LINEBET uchun ishlaydi.\n"
@@ -47,7 +45,12 @@ def send_welcome(message):
         "3) ID raqamingizni botga kiriting.\n"
         "⚠️ Aks holda bot sizga noto‘g‘ri signal ko‘rsatadi!"
     )
-    bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu())
+
+# === /start komandasi ===
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    users.add(message.chat.id)
+    bot.send_message(message.chat.id, welcome_text(), reply_markup=main_menu())
 
 # === MATNLI XABARLAR ===
 @bot.message_handler(func=lambda m: True)
@@ -90,10 +93,13 @@ def handle_message(message):
         else:
             bot.send_message(message.chat.id, "❌ Bu bo‘lim faqat admin uchun!")
 
+    elif message.text == "🔄 Start":
+        send_welcome(message)
+
     elif message.text == "🔙 Orqaga":
         bot.send_message(message.chat.id, "Asosiy menyuga qaytdingiz.", reply_markup=main_menu())
 
-# === ID OLIB, SIGNAL MENU OCHISH ===
+# === IDni saqlash ===
 def get_id(message):
     user_id = message.text.strip()
     users_with_id.add(message.chat.id)
@@ -103,12 +109,23 @@ def get_id(message):
         reply_markup=signal_menu()
     )
 
-# === BOTNI ISHGA TUSHURISH ===
+# === FLASK ROUTES ===
+@server.route(f"/{TOKEN}", methods=['POST'])
+def webhook():
+    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
+    return "OK", 200
+
+@server.route("/", methods=['GET'])
+def index():
+    return "Bot ishlayapti!", 200
+
+# === SERVERNI ISHGA TUSHURISH ===
 if __name__ == "__main__":
-    try:
-        bot.polling(none_stop=True)
-    except Exception as e:
-        logger.error(f"Botni ishga tushirishda xatolik yuz berdi: {e}")
+    bot.remove_webhook()
+    bot.set_webhook(url=APP_URL + TOKEN)
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+
 
 
 
