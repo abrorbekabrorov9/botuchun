@@ -1,235 +1,144 @@
 import os
+import telebot
 import logging
 import random
 from flask import Flask, request
-import telebot
-from telebot import types
 
-# --------- ENV ----------
+# === TOKEN & URL ===
 TOKEN = os.environ.get("BOT_TOKEN")
-APP_URL = os.environ.get("APP_URL", "")
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable topilmadi!")
-if not APP_URL:
-    raise ValueError("APP_URL environment variable topilmadi!")
-APP_URL = APP_URL.rstrip("/")  # trailing slash bo'lsa olib tashlaymiz
+APP_URL = os.environ.get("APP_URL")
 
-# --------- BOT / FLASK ----------
-bot = telebot.TeleBot(TOKEN, parse_mode="Markdown")
+if not TOKEN or not APP_URL:
+    raise ValueError("BOT_TOKEN yoki APP_URL topilmadi!")
+
+bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
-# --------- LOGGING ----------
-logging.basicConfig(level=logging.INFO)
+# === LOGGING ===
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# --------- ADMIN / KANAL ----------
-ADMIN_ID = 7850048970                  # sening admin ID'ing
-CHANNEL_ID = -1003045379122            # yopiq kanal ID'ing
+# === ADMIN ID ===
+ADMIN_ID = 7850048970
 
-# --------- USER STORAGE ----------
-users = {}
+# === Foydalanuvchilarni saqlash ===
+users = set()
+users_with_id = set()
 
-# --------- MENYU ----------
+# === MENYU TUGMALARI ===
 def main_menu():
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
-    kb.row("📸 Skrinshot yuborish", "🔔 Signal olish")
-    kb.row("📊 Statistika")
-    return kb
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
+    markup.row("📡 Signal olish 🍎")
+    markup.row("📊 Statistika", "/start")  # 👉 bu yerda /start tugmasi qo‘shildi
+    return markup
 
-# --------- /start ----------
-@bot.message_handler(commands=["start"])
-def cmd_start(message: types.Message):
-    users.setdefault(message.chat.id, {"id": None, "confirmed": False})
-    txt = (
+def signal_menu():
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("📡 Signal olish 🍎")
+    markup.row("🔙 Orqaga", "/start")
+    return markup
+
+# === /START ===
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    users.add(message.chat.id)
+    welcome_text = (
         "👋 Hurmatli foydalanuvchi!\n\n"
         "Quyidagi tugmalardan foydalaning 👇\n\n"
-        "❗️ *Diqqat!* Bot faqat **LINEBET** uchun ishlaydi.\n"
-        "👉 Ro'yxatdan o'tishda *PROMOKOD* joyiga albatta **FOYDA50** yozing.\n"
-        "💰 Hisobingizni kamida *50 000 yoki 100 000 so‘mga* to‘ldiring — shunda bot sizga *100% aniq signal* ko‘rsatadi!\n"
-        "📸 Ro'yxatdan o'tganingizni tasdiqlash uchun *Skrinshot yuboring*."
+        "❗️ Diqqat! Bot faqat LINEBET uchun ishlaydi.\n"
+        "1) Ro'yxatdan o'tish tugmasini bosing va sayt orqali ro'yxatdan o'ting.\n"
+        "2) Promokod joyiga albatta: FOYDA50 yozing.\n"
+        "3) ID raqamingizni botga kiriting.\n"
+        "⚠️ Aks holda bot sizga noto‘g‘ri signal ko‘rsatadi!"
     )
-    bot.send_message(message.chat.id, txt, reply_markup=main_menu())
+    bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu())
 
-# --------- TEXTLAR ----------
-@bot.message_handler(func=lambda m: True, content_types=["text"])
-def on_text(message: types.Message):
-    chat_id = message.chat.id
-    text = message.text.strip()
-    users.setdefault(chat_id, {"id": None, "confirmed": False})
-
-    if text == "📝 Ro'yxatdan o'tish":
+# === Matnli xabarlar ===
+@bot.message_handler(func=lambda m: True)
+def handle_message(message):
+    if message.text == "📝 Ro'yxatdan o'tish":
         bot.send_message(
-            chat_id,
+            message.chat.id,
             "📝 Ro'yxatdan o'tish uchun havolalar:\n\n"
             "👉 https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration\n"
-            "👉 https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803\n"
-            "👉 https://uzb.bonus-linebet.com/foyda50\n\n"
-            "ℹ️ *O‘zingizga qulay bo‘lganidan ro‘yxatdan o‘ting.*\n"
-            "⚠️ *FOYDA50* promokodini *to‘liq* kiriting — bu **LINEBET** uchun *majburiy*."
+            "👉 https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803\n\n"
+            "❗️ Diqqat: Ro‘yxatdan o‘tayotganda PROMOKOD joyiga albatta *FOYDA50* yozing!\n"
+            "Aks holda bot sizga aniq signal ko‘rsatmaydi."
         )
 
-    elif text == "▶️ Davom etish":
-        msg = bot.send_message(chat_id, "🔑 *ID raqamingizni* kiriting:")
-        bot.register_next_step_handler(msg, save_user_id)
+    elif message.text == "▶️ Davom etish":
+        msg = bot.send_message(message.chat.id, "🔑 ID raqamingizni kiriting:")
+        bot.register_next_step_handler(msg, get_id)
 
-    elif text == "📸 Skrinshot yuborish":
-        bot.send_message(
-            chat_id,
-            "📸 Iltimos, ro‘yxatdan o‘tganingizni tasdiqlovchi *skrinshotni* yuboring.\n\n"
-            "⚠️ *Eslatma:* faqat **FOYDA50** promokodi bilan ro‘yxatdan o‘tilgan hisoblar tasdiqlanadi (LINEBET)."
-        )
+    elif message.text == "📡 Signal olish 🍎":
+        if message.chat.id in users_with_id:
+            random_number = random.randint(1, 5)
+            signal_text = (
+                f"📡 Signal: {random_number} 🍎\n\n"
+                "⚠️ Eslatma!\n"
+                "👉 Bot faqat LINEBET uchun ishlaydi.\n"
+                "👉 Promokod joyiga albatta *FOYDA50* yozing.\n"
+                "❌ Aks holda bot sizga noto‘g‘ri signal ko‘rsatadi!"
+            )
+            bot.send_message(message.chat.id, signal_text)
+        else:
+            bot.send_message(message.chat.id, "❌ Avval ID raqamingizni kiriting!")
 
-    elif text == "🔔 Signal olish":
-        info = users.get(chat_id, {})
-        if not info.get("confirmed"):
+    elif message.text == "📊 Statistika":
+        if message.chat.id == ADMIN_ID:
             bot.send_message(
-                chat_id,
-                "⛔ Siz hali *tasdiqlanmagansiz!*\n"
-                "📸 Avval skrinshot yuboring va *admin tasdiqlashini* kuting."
+                message.chat.id,
+                f"📊 Bot foydalanuvchilari soni: {len(users)}\n"
+                f"✅ ID kiritganlar soni: {len(users_with_id)}"
             )
-            return
-        n = random.randint(1, 5)
-        bot.send_message(
-            chat_id,
-            f"📡 Signal: *{n}* 🍎\n\n"
-            "⚠️ Eslatma!\n"
-            "👉 Bot faqat **LINEBET** uchun ishlaydi.\n"
-            "👉 Promokod joyiga albatta *FOYDA50* yozing.\n"
-            "💰 Hisobingizni kamida *50 000 yoki 100 000 so‘mga* to‘ldiring — shunda bot sizga *100% aniq signal* ko‘rsatadi!\n"
-            "❌ Aks holda bot noto‘g‘ri signal ko‘rsatadi."
-        )
+        else:
+            bot.send_message(message.chat.id, "❌ Bu bo‘lim faqat admin uchun!")
 
-    elif text == "📊 Statistika":
-        if chat_id != ADMIN_ID:
-            bot.send_message(chat_id, "❌ Bu bo‘lim faqat *admin* uchun!")
-            return
-        total = len(users)
-        confirmed = sum(1 for u in users.values() if u.get("confirmed"))
-        with_id = sum(1 for u in users.values() if u.get("id"))
-        bot.send_message(
-            chat_id,
-            f"📊 Statistika\n"
-            f"👥 Jami foydalanuvchilar: *{total}*\n"
-            f"🆔 ID kiritganlar: *{with_id}*\n"
-            f"✅ Tasdiqlanganlar: *{confirmed}*"
-        )
+    elif message.text == "🔙 Orqaga":
+        bot.send_message(message.chat.id, "Asosiy menyuga qaytdingiz.", reply_markup=main_menu())
 
-# --------- ID saqlash ----------
-def save_user_id(message: types.Message):
-    chat_id = message.chat.id
-    users.setdefault(chat_id, {"id": None, "confirmed": False})
-    users[chat_id]["id"] = message.text.strip()
+    elif message.text.startswith("/send"):
+        if message.chat.id == ADMIN_ID:
+            text = message.text.replace("/send", "").strip()
+            if text:
+                sent = 0
+                for uid in users:
+                    try:
+                        bot.send_message(uid, text)
+                        sent += 1
+                    except:
+                        pass
+                bot.send_message(message.chat.id, f"✅ Xabar {sent} ta foydalanuvchiga yuborildi.")
+            else:
+                bot.send_message(message.chat.id, "❌ Matn kiriting: /send Salom hammaga!")
+        else:
+            bot.send_message(message.chat.id, "❌ Sizda bu buyruqni ishlatish huquqi yo‘q!")
+
+    elif message.text == "/start":
+        send_welcome(message)  # 👉 /start tugmasi bosilganda ham qayta welcome chiqadi
+
+# === ID olish ===
+def get_id(message):
+    user_id = message.text.strip()
+    users_with_id.add(message.chat.id)
     bot.send_message(
-        chat_id,
-        f"✅ ID qabul qilindi: *{users[chat_id]['id']}*\n"
-        "📸 Endi ro‘yxatdan o‘tganingizni tasdiqlovchi *skrinshotni yuboring*."
+        message.chat.id,
+        f"✅ ID qabul qilindi: {user_id}\n📡 Endi signal olish tugmasidan foydalanishingiz mumkin.",
+        reply_markup=signal_menu()
     )
 
-# --------- SKRINSHOT QABUL ----------
-@bot.message_handler(content_types=["photo"])
-def on_photo(message: types.Message):
-    chat_id = message.chat.id
-    users.setdefault(chat_id, {"id": None, "confirmed": False})
-
-    file_id = message.photo[-1].file_id
-
-    caption = (
-        f"📥 *Yangi skrinshot*\n"
-        f"👤 UserID: `{chat_id}`\n"
-        f"🆔 Linebet ID: `{users[chat_id]['id']}`\n"
-        f"— — —\n"
-        f"Quyidagi tugmalar orqali tasdiqlang yoki rad eting."
-    )
-    kb = types.InlineKeyboardMarkup()
-    kb.add(
-        types.InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{chat_id}"),
-        types.InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{chat_id}")
-    )
-
-    try:
-        bot.send_photo(CHANNEL_ID, file_id, caption=caption, reply_markup=kb, parse_mode="Markdown")
-    except Exception as e:
-        logger.exception("Kanalga yuborishda xatolik:")
-        bot.send_message(
-            chat_id,
-            "⚠️ Xatolik: rasm kanalga yuborilmadi.\n"
-            "Iltimos, bot *kanalga admin* qilinganini tekshiring."
-        )
-        return
-
-    bot.send_message(
-        chat_id,
-        "📩 *Skrinshot qabul qilindi!*\n"
-        "✅ Endi *admin tasdiqlashini* kuting.\n\n"
-        "⚠️ *Eslatma:* faqat **FOYDA50** promokodi bilan ro‘yxatdan o‘tilgan hisoblar tasdiqlanadi (LINEBET)."
-    )
-
-# --------- ADMIN CALLBACK ----------
-@bot.callback_query_handler(func=lambda c: c.data.startswith(("approve_", "reject_")))
-def on_callback(c: types.CallbackQuery):
-    if c.from_user.id != ADMIN_ID:
-        bot.answer_callback_query(c.id, "⛔ Faqat admin tasdiqlay oladi.")
-        return
-
-    action, user_str = c.data.split("_", 1)
-    target_id = int(user_str)
-
-    users.setdefault(target_id, {"id": None, "confirmed": False})
-
-    if action == "approve":
-        users[target_id]["confirmed"] = True
-        bot.send_message(
-            target_id,
-            "✅ *Skrinshotingiz tasdiqlandi!*\n"
-            "Endi *🔔 Signal olish* tugmasidan foydalanishingiz mumkin."
-        )
-        try:
-            new_caption = (c.message.caption or "") + "\n\n✅ *Tasdiqlandi*"
-            bot.edit_message_caption(
-                chat_id=c.message.chat.id,
-                message_id=c.message.message_id,
-                caption=new_caption,
-                parse_mode="Markdown",
-                reply_markup=None
-            )
-        except Exception:
-            pass
-        bot.answer_callback_query(c.id, "Tasdiqlandi ✅")
-
-    elif action == "reject":
-        users[target_id]["confirmed"] = False
-        bot.send_message(
-            target_id,
-            "❌ *Skrinshotingiz tasdiqlanmadi.*\n"
-            "Iltimos, **FOYDA50** promokodi bilan ro‘yxatdan o‘tib *to‘g‘ri skrinshot* yuboring va qayta urinib ko‘ring."
-        )
-        try:
-            new_caption = (c.message.caption or "") + "\n\n❌ *Rad etildi*"
-            bot.edit_message_caption(
-                chat_id=c.message.chat.id,
-                message_id=c.message.message_id,
-                caption=new_caption,
-                parse_mode="Markdown",
-                reply_markup=None
-            )
-        except Exception:
-            pass
-        bot.answer_callback_query(c.id, "Rad etildi ❌")
-
-# --------- WEBHOOK ROUTES ----------
+# === WEBHOOK ===
 @server.route(f"/{TOKEN}", methods=["POST"])
-def telegram_webhook():
-    update = telebot.types.Update.de_json(request.data.decode("utf-8"))
+def webhook():
+    json_str = request.stream.read().decode("utf-8")
+    update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
     return "OK", 200
 
-@server.route("/", methods=["GET"])
-def index():
-    bot.remove_webhook()
-    bot.set_webhook(url=f"{APP_URL}/{TOKEN}")
-    return "Webhook OK", 200
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    server.run(host="0.0.0.0", port=port)
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{APP_URL}{TOKEN}")
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+
