@@ -22,7 +22,20 @@ logger = logging.getLogger(__name__)
 ADMIN_ID = 7850048970
 
 # === Foydalanuvchilarni saqlash ===
-users = set()
+USERS_FILE = "users.txt"
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "r") as f:
+            return set(map(int, f.read().splitlines()))
+    return set()
+
+def save_user(user_id):
+    if user_id not in users:
+        with open(USERS_FILE, "a") as f:
+            f.write(str(user_id) + "\n")
+
+users = load_users()
 users_with_id = set()
 
 # === MENYU TUGMALARI ===
@@ -30,7 +43,7 @@ def main_menu():
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📝 Ro'yxatdan o'tish", "▶️ Davom etish")
     markup.row("📡 Signal olish 🍎")
-    markup.row("📊 Statistika", "/start")  # 👉 bu yerda /start tugmasi qo‘shildi
+    markup.row("📊 Statistika", "/start")
     return markup
 
 def signal_menu():
@@ -43,6 +56,7 @@ def signal_menu():
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     users.add(message.chat.id)
+    save_user(message.chat.id)   # ✅ faylga yozib qo‘yish
     welcome_text = (
         "👋 Hurmatli foydalanuvchi!\n\n"
         "Quyidagi tugmalardan foydalaning 👇\n\n"
@@ -98,25 +112,22 @@ def handle_message(message):
     elif message.text == "🔙 Orqaga":
         bot.send_message(message.chat.id, "Asosiy menyuga qaytdingiz.", reply_markup=main_menu())
 
-    elif message.text.startswith("/send"):
-        if message.chat.id == ADMIN_ID:
-            text = message.text.replace("/send", "").strip()
-            if text:
-                sent = 0
-                for uid in users:
-                    try:
-                        bot.send_message(uid, text)
-                        sent += 1
-                    except:
-                        pass
-                bot.send_message(message.chat.id, f"✅ Xabar {sent} ta foydalanuvchiga yuborildi.")
-            else:
-                bot.send_message(message.chat.id, "❌ Matn kiriting: /send Salom hammaga!")
-        else:
-            bot.send_message(message.chat.id, "❌ Sizda bu buyruqni ishlatish huquqi yo‘q!")
-
     elif message.text == "/start":
-        send_welcome(message)  # 👉 /start tugmasi bosilganda ham qayta welcome chiqadi
+        send_welcome(message)
+
+    elif message.text.startswith("/send "):
+        if message.chat.id == ADMIN_ID:
+            text = message.text[6:]
+            count = 0
+            for uid in users:
+                try:
+                    bot.send_message(uid, text)
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Xabar yuborilmadi: {e}")
+            bot.send_message(message.chat.id, f"✅ Xabar {count} ta foydalanuvchiga yuborildi.")
+        else:
+            bot.send_message(message.chat.id, "❌ Sizda huquq yo‘q!")
 
 # === ID olish ===
 def get_id(message):
@@ -140,5 +151,6 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"{APP_URL}{TOKEN}")
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
 
 
