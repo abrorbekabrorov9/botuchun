@@ -74,7 +74,15 @@ def on_text(message: types.Message):
         return
 
     if text == "📝 Ro'yxatdan o'tish":
-        bot.send_message(user, "📝 Ro‘yxatdan o‘tish linki:\n👉 https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration")
+        bot.send_message(
+            user,
+            "📝 Ro'yxatdan o'tish uchun havolalar:\n\n"
+            "👉 https://lb-aff.com/L?tag=d_4617949m_22611c_site&site=4617949&ad=22611&r=registration\n"
+            "👉 https://lb-aff.com/L?tag=d_4617949m_66803c_apk1&site=4617949&ad=66803\n"
+            "👉 https://uzb.bonus-linebet.com/foyda50\n\n"
+            "ℹ️ O‘zingizga qulay bo‘lganidan ro‘yxatdan o‘ting.\n"
+            "⚠️ Promokod joyiga albatta *FOYDA50* yozing!"
+        )
 
     elif text == "▶️ Davom etish":
         msg = bot.send_message(user, "🔑 ID raqamingizni kiriting:")
@@ -195,4 +203,5 @@ def index():
 
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
 
